@@ -1,0 +1,8 @@
+discord.py
+aiohttp
+colorama
+pystyle
+requests
+flask
+flask-socketio
+eventlet

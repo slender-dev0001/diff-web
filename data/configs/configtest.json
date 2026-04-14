@@ -1,0 +1,15 @@
+{
+    "prefix": "!",
+    "spammessage": "test",
+    "image_url": "",
+    "channelsname": "testt",
+    "rolename": "r",
+    "dm_message": "Fini",
+    "dm_all_nuke": true,
+    "ban_all": false,
+    "admin_all": true,
+    "log_spam_nuke": false,
+    "num_channels": 10,
+    "num_roles": 0,
+    "spam_amount": 12
+}

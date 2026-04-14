@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIFF-TOOL | Web Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: linear-gradient(135deg, #0a0e27 0%, #1a0933 100%); color: #e2e8f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-height: 100vh; }
+        .card { background: rgba(30, 30, 50, 0.9); border: 1px solid rgba(100, 200, 255, 0.2); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); }
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-size: 14px; }
+        .btn-primary { background: linear-gradient(135deg, #0066ff 0%, #0052cc 100%); color: white; }
+        .btn-primary:hover:not(:disabled) { background: linear-gradient(135deg, #0052cc 0%, #003d99 100%); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 102, 255, 0.4); }
+        .btn-danger { background: linear-gradient(135deg, #ff3333 0%, #cc0000 100%); color: white; }
+        .btn-danger:hover:not(:disabled) { background: linear-gradient(135deg, #cc0000 0%, #990000 100%); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 51, 51, 0.4); }
+        .btn-success { background: linear-gradient(135deg, #00cc66 0%, #009944 100%); color: white; }
+        .btn-success:hover:not(:disabled) { background: linear-gradient(135deg, #009944 0%, #006633 100%); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 204, 102, 0.4); }
+        .btn-warning { background: linear-gradient(135deg, #ff9900 0%, #cc6600 100%); color: white; }
+        .btn-warning:hover:not(:disabled) { background: linear-gradient(135deg, #cc6600 0%, #994400 100%); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 153, 0, 0.4); }
+        .btn-info { background: linear-gradient(135deg, #00ccff 0%, #0099cc 100%); color: white; }
+        .btn-info:hover:not(:disabled) { background: linear-gradient(135deg, #0099cc 0%, #006699 100%); transform: translateY(-2px); }
+        .btn-sm { padding: 8px 12px; font-size: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .status-badge { display: inline-block; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+        .status-online { background: rgba(0, 204, 102, 0.2); color: #00cc66; border: 1px solid #00cc66; }
+        .status-offline { background: rgba(255, 51, 51, 0.2); color: #ff3333; border: 1px solid #ff3333; }
+        .action-item { background: rgba(50, 50, 80, 0.6); border-left: 4px solid #0066ff; padding: 12px; border-radius: 6px; margin: 8px 0; cursor: pointer; transition: all 0.2s; }
+        .action-item:hover { background: rgba(70, 70, 100, 0.8); border-left-color: #00ff99; transform: translateX(4px); }
+        .action-item.selected { background: rgba(0, 102, 255, 0.3); border-left-color: #00ff99; }
+        .stat-card { background: linear-gradient(135deg, rgba(0, 150, 255, 0.1) 0%, rgba(0, 100, 255, 0.05) 100%); border: 1px solid rgba(0, 150, 255, 0.3); padding: 12px; border-radius: 8px; text-align: center; }
+        .stat-number { font-size: 24px; font-weight: 700; color: #00ff99; }
+        .stat-label { font-size: 11px; color: #999; text-transform: uppercase; margin-top: 4px; }
+        .log-item { padding: 8px 12px; border-left: 3px solid transparent; margin: 4px 0; font-size: 12px; font-family: 'Courier New', monospace; border-radius: 4px; transition: all 0.2s; }
+        .log-success { border-left-color: #00cc66; color: #00cc66; background: rgba(0, 204, 102, 0.05); }
+        .log-error { border-left-color: #ff3333; color: #ff6666; background: rgba(255, 51, 51, 0.05); }
+        .log-warning { border-left-color: #ffaa00; color: #ffcc33; background: rgba(255, 170, 0, 0.05); }
+        .log-info { border-left-color: #0099ff; color: #66ccff; background: rgba(0, 153, 255, 0.05); }
+        .log-debug { border-left-color: #9966ff; color: #cc99ff; background: rgba(153, 102, 255, 0.05); }
+        .input-group { margin: 12px 0; }
+        .input-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; color: #00ff99; }
+        input[type="text"], input[type="password"], input[type="number"], textarea, select { width: 100%; background: rgba(20, 20, 40, 0.8); border: 1px solid rgba(100, 150, 255, 0.3); color: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 13px; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: rgba(0, 150, 255, 0.8); box-shadow: 0 0 10px rgba(0, 150, 255, 0.2); }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; }
+        .checkbox-item input { width: 16px; height: 16px; cursor: pointer; }
+        .header { background: rgba(20, 20, 40, 0.95); padding: 20px; border-bottom: 2px solid rgba(0, 150, 255, 0.5); margin-bottom: 20px; }
+        .header h1 { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #00ff99 0%, #0066ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { opacity: 0.7; margin-top: 4px; font-size: 13px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+        @media (max-width: 1400px) { .grid-4 { grid-template-columns: 1fr 1fr 1fr; } }
+        @media (max-width: 1024px) { .grid-2 { grid-template-columns: 1fr; } .grid-3 { grid-template-columns: 1fr 1fr; } .grid-4 { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 768px) { .grid-3 { grid-template-columns: 1fr; } .grid-4 { grid-template-columns: 1fr; } }
+        .section-title { font-size: 16px; font-weight: 700; color: #00ff99; margin: 16px 0 12px 0; text-transform: uppercase; letter-spacing: 1px; }
+        .section-title.danger { color: #ff6666; }
+        .section-title.warning { color: #ffcc33; }
+        .section-title.info { color: #66ccff; }
+        .loader { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(0, 150, 255, 0.3); border-top-color: #00ff99; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .progress-bar { width: 100%; height: 6px; background: rgba(100, 100, 150, 0.3); border-radius: 3px; overflow: hidden; margin: 8px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #00ff99 0%, #0066ff 100%); width: 0%; transition: width 0.3s ease; }
+        
+        /* List styles */
+        .list-container { max-height: 400px; overflow-y: auto; background: rgba(10, 10, 20, 0.5); border-radius: 8px; padding: 10px; }
+        .list-item { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .list-item:last-child { border-bottom: none; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 12px; background: #333; }
+        .role-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 700; }
+        .tab-btn { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s; opacity: 0.6; }
+        .tab-btn.active { border-bottom-color: #00ff99; opacity: 1; color: #00ff99; }
+    </style>
+</head>
+<body>
+<body>
+    <div class="header">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1>⚡ DIFF-TOOL CONTROL PANEL</h1>
+                <p>Web Control Panel v2.0 - Nuke Complete Discord Servers | Real-time Monitoring & Control</p>
+            </div>
+            <div>
+                <span id="status-display" class="status-badge status-offline pulse">DISCONNECTED</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-6 pb-12">
+        <!-- Server Stats -->
+        <div id="stats-container" class="grid-4 mb-6" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-channels">0</div>
+                <div class="stat-label">Channels</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-roles">0</div>
+                <div class="stat-label">Roles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-members">0</div>
+                <div class="stat-label">Members</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-emojis">0</div>
+                <div class="stat-label">Emojis</div>
+            </div>
+        </div>
+
+        <!-- Connection & Configuration -->
+        <div class="card mb-6">
+            <div class="section-title">🔌 Connection & Configuration</div>
+            <div class="grid-2">
+                <div>
+                    <div class="input-group">
+                        <label>Select Token</label>
+                        <select id="token-select" onchange="toggleTokenInput()" class="w-full">
+                            <option value="">+ Add New Token</option>
+                        </select>
+                    </div>
+                    <div id="new-token-div" style="display: none;">
+                        <div class="input-group">
+                            <label>New Discord Bot Token</label>
+                            <input type="password" id="token-input" placeholder="Bot token...">
+                        </div>
+                        <div class="input-group">
+                            <label>Token Name (optionnel)</label>
+                            <input type="text" id="token-name-input" placeholder="Bot name label...">
+                        </div>
+                        <button class="btn btn-primary w-full" onclick="saveToken()">Save Token</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="input-group">
+                        <label>Select Guild</label>
+                        <select id="guild-select" onchange="toggleGuildInput()" class="w-full">
+                            <option value="">+ Add New Guild</option>
+                        </select>
+                    </div>
+                    <div id="new-guild-div" style="display: none;">
+                        <div class="input-group">
+                            <label>Guild ID</label>
+                            <input type="text" id="guild-input" placeholder="1234567890">
+                        </div>
+                        <div class="input-group">
+                            <label>Guild Name (optionnel)</label>
+                            <input type="text" id="guild-name-input" placeholder="Guild name label...">
+                        </div>
+                        <button class="btn btn-primary w-full" onclick="saveGuild()">Save Guild</button>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-success w-full mt-4" onclick="applyConfig()" style="padding: 14px; font-size: 15px;">✓ CONNECT SYSTEM</button>
+        </div>
+
+        <div class="grid-2">
+            <!-- Left Column: Configuration & Controls -->
+            <div>
+                <!-- Server Configuration -->
+                <div class="card mb-6">
+                    <div class="section-title">🖥️ Server Configuration</div>
+                    <div class="input-group">
+                        <label>Server Name</label>
+                        <input type="text" id="server_name" placeholder="RAIDED BY DIFF-TOOL">
+                    </div>
+                </div>
+
+                <!-- Bot Configuration -->
+                <div class="card mb-6">
+                    <div class="section-title">🤖 Bot Configuration</div>
+                    <div class="input-group">
+                        <label>Command Prefix</label>
+                        <input type="text" id="nuke_prefix" value="!" maxlength="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Spam Message</label>
+                        <textarea id="nuke_spam" rows="3">@everyone RAIDED BY DIFF-TOOL</textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>DM Message</label>
+                        <textarea id="dm_message" rows="2">RAIDED BY DIFF-TOOL</textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>Bot Display Name</label>
+                        <input type="text" id="bot_display_name" placeholder="DIFF Assistant" value="DIFF Assistant">
+                    </div>
+                </div>
+
+                <!-- Creation Settings -->
+                <div class="card mb-6">
+                    <div class="section-title">⚙️ Creation Settings</div>
+                    <div class="input-group">
+                        <label>Channel Name</label>
+                        <input type="text" id="channels_name" placeholder="raid" value="raid">
+                    </div>
+                    <div class="input-group">
+                        <label>Channels to Create</label>
+                        <input type="number" id="channels_count" value="50" min="1" max="100">
+                    </div>
+                    <div class="input-group">
+                        <label>Role Name</label>
+                        <input type="text" id="roles_name" placeholder="admin" value="admin">
+                    </div>
+                    <div class="input-group">
+                        <label>Roles to Create</label>
+                        <input type="number" id="roles_count" value="50" min="1" max="100">
+                    </div>
+                    <div class="input-group">
+                        <label>Messages Per Channel</label>
+                        <input type="number" id="spam_amount" value="30" min="1" max="100">
+                    </div>
+                </div>
+
+                <!-- Bot Actions -->
+                <div class="card mb-6">
+                    <div class="section-title">🎯 Bot Actions</div>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="ban_all" checked>
+                            <label for="ban_all">Ban All</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="admin_all" checked>
+                            <label for="admin_all">Admin All</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="dm_all" checked>
+                            <label for="dm_all">DM All</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="log_spam" checked>
+                            <label for="log_spam">Log Spam</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bot Launcher -->
+                <div class="card mb-6">
+                    <button class="btn btn-danger w-full" id="bot-btn" onclick="toggleBot()" style="padding: 16px; font-size: 15px;">▶ START BOT MODE</button>
+                </div>
+            </div>
+
+            <!-- Right Column: Actions & Logs -->
+            <div>
+                <!-- Quick Actions -->
+                <div class="card mb-6">
+                    <div class="section-title danger">⚡ DESTRUCTION ACTIONS</div>
+                    <div>
+                        <div class="action-item" onclick="executeAction('delete_channels')">
+                            <strong>🗑️ Delete All Channels</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Remove all text and voice channels</div>
+                        </div>
+                        <div class="action-item" onclick="executeAction('delete_roles')">
+                            <strong>🗑️ Delete All Roles</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Remove all custom roles</div>
+                        </div>
+                        <div class="action-item" onclick="executeAction('ban_members')">
+                            <strong>⛔ Ban All Members</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Ban all server members</div>
+                        </div>
+                        <div class="action-item" onclick="executeAction('delete_emojis')">
+                            <strong>⌫ Delete All Emojis</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Remove all custom emojis</div>
+                        </div>
+                        <div class="action-item" onclick="executeAction('delete_stickers')">
+                            <strong>⌫ Delete All Stickers</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Remove all stickers</div>
+                        </div>
+                        <div class="action-item" onclick="executeAction('dm_all')">
+                            <strong>📩 DM All Members</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Send a private message to everyone</div>
+                        </div>
+                        <div class="action-item" onclick="renameBot()">
+                            <strong>🤖 Rename Bot</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Change the bot username</div>
+                        </div>
+                        <div class="action-item" onclick="openRenameModal()">
+                            <strong>✏️ Rename Server</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Change server name to configured value</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Info & Lists -->
+                <div class="card mb-6" id="server-lists-card" style="display: none;">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="section-title info mb-0">📊 Server Insights</div>
+                        <div class="flex gap-2">
+                            <button class="btn btn-sm btn-info" onclick="refreshGuildData()">↻ Refresh</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex border-b border-gray-700 mb-4">
+                        <div id="tab-members" class="tab-btn active" onclick="switchTab('members')">Members</div>
+                        <div id="tab-roles" class="tab-btn" onclick="switchTab('roles')">Roles</div>
+                    </div>
+
+                    <div id="members-list-view">
+                        <div class="input-group mb-4">
+                            <input type="text" id="member-search" placeholder="Search member..." onkeyup="filterMembers()">
+                        </div>
+                        <div id="members-list" class="list-container">
+                            <div class="text-center py-8 opacity-50">Fetching members...</div>
+                        </div>
+                    </div>
+
+                    <div id="roles-list-view" style="display: none;">
+                        <div id="roles-list" class="list-container">
+                            <div class="text-center py-8 opacity-50">Fetching roles...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Creation & Spam Actions -->
+                <div class="card mb-6">
+                    <div class="section-title warning">➕ SPAM & CREATE ACTIONS</div>
+                    <div>
+                        <div class="action-item" onclick="executeCreateChannels()" style="border-left-color: #ffaa00;">
+                            <strong>📢 Create Channels</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Create specified number of channels</div>
+                        </div>
+                        <div class="action-item" onclick="executeCreateRoles()" style="border-left-color: #ffaa00;">
+                            <strong>📢 Create Roles</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Create specified number of roles</div>
+                        </div>
+                        <div class="action-item" onclick="spamWebhooks()" style="border-left-color: #ffaa00;">
+                            <strong>💬 Spam Webhooks</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">Send spam messages via webhooks</div>
+                        </div>
+                        <div class="action-item" onclick="spamDirect()" style="border-left-color: #ffaa00;">
+                            <strong>💬 Spam Direct Messages</strong>
+                            <div style="font-size: 12px; opacity: 0.7;">DM spam to all members</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Logs -->
+                <div class="card">
+                    <div class="section-title info">📋 LIVE LOGS & EVENTS</div>
+                    <div id="logs" style="background: rgba(10, 10, 20, 0.9); border-radius: 6px; padding: 12px; height: 450px; overflow-y: auto; font-size: 11px;">
+                        <div class="log-item log-info">⏳ System ready - waiting for connection...</div>
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <button class="btn btn-info btn-sm" onclick="clearLogs()" style="width: 48%; margin-right: 4%;">Clear Logs</button>
+                        <button class="btn btn-primary btn-sm" onclick="downloadLogs()" style="width: 48%;">Download</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div id="rename-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center;" class="flex">
+        <div class="card" style="width: 400px;">
+            <h2 style="font-size: 18px; margin-bottom: 16px; color: #00ff99;">Rename Server</h2>
+            <div class="input-group">
+                <label>New Server Name</label>
+                <input type="text" id="new-server-name" placeholder="RAIDED BY DIFF-TOOL">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary flex-1" onclick="confirmRename()">✓ Apply</button>
+                <button class="btn btn-secondary flex-1" onclick="closeRenameModal()" style="background: rgba(100,100,150,0.8); color: white;">✕ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let isConnected = false;
+        let botRunning = false;
+        let operationInProgress = false;
+        const logs = [];
+        const MAX_LOGS = 500;
+
+        socket.on('log', (data) => {
+            addLog(data.message, data.type);
+        });
+
+        socket.on('connect', () => {
+            isConnected = true;
+            updateStatus();
+            loadConfig();
+            addLog('Socket.IO Connected to server', 'success');
+        });
+
+        socket.on('disconnect', () => {
+            isConnected = false;
+            updateStatus();
+            addLog('Socket.IO Disconnected from server', 'error');
+        });
+
+        function addLog(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-item log-${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            logs.push({time, message, type});
+            if (logs.length > MAX_LOGS) {
+                logs.shift();
+                logsDiv.removeChild(logsDiv.firstChild);
+            }
+        }
+
+        function updateStatus() {
+            const badge = document.getElementById('status-display');
+            if (isConnected) {
+                badge.textContent = 'CONNECTED';
+                badge.className = 'status-badge status-online pulse';
+            } else {
+                badge.textContent = 'DISCONNECTED';
+                badge.className = 'status-badge status-offline pulse';
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                document.getElementById('token-select').innerHTML = '<option value="">+ Add New Token</option>';
+                data.tokens.forEach(t => {
+                    document.getElementById('token-select').innerHTML += `<option value="${t[0]}">${t[1] || 'Bot'}</option>`;
+                });
+                document.getElementById('guild-select').innerHTML = '<option value="">+ Add New Guild</option>';
+                data.guilds.forEach(g => {
+                    document.getElementById('guild-select').innerHTML += `<option value="${g[0]}">${g[1] || g[0]}</option>`;
+                });
+                addLog('Configuration loaded successfully', 'success');
+            } catch (err) {
+                addLog('Failed to load configuration: ' + err, 'error');
+            }
+        }
+
+        function toggleTokenInput() {
+            document.getElementById('new-token-div').style.display = document.getElementById('token-select').value ? 'none' : 'block';
+        }
+
+        function toggleGuildInput() {
+            document.getElementById('new-guild-div').style.display = document.getElementById('guild-select').value ? 'none' : 'block';
+        }
+
+        async function saveToken() {
+            const token = document.getElementById('token-input').value;
+            const name = document.getElementById('token-name-input').value;
+            if (!token) { addLog('Token cannot be empty', 'error'); return; }
+            try {
+                await fetch('/api/config/save_token', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token, name}) });
+                loadConfig();
+                document.getElementById('token-input').value = '';
+                document.getElementById('token-name-input').value = '';
+                addLog('Token saved successfully', 'success');
+            } catch (err) {
+                addLog('Failed to save token: ' + err, 'error');
+            }
+        }
+
+        async function saveGuild() {
+            const guild_id = document.getElementById('guild-input').value;
+            const name = document.getElementById('guild-name-input').value;
+            if (!guild_id) { addLog('Guild ID cannot be empty', 'error'); return; }
+            try {
+                await fetch('/api/config/save_guild', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({guild_id, name}) });
+                loadConfig();
+                document.getElementById('guild-input').value = '';
+                document.getElementById('guild-name-input').value = '';
+                addLog('Guild saved successfully', 'success');
+            } catch (err) {
+                addLog('Failed to save guild: ' + err, 'error');
+            }
+        }
+
+        async function applyConfig() {
+            const token = document.getElementById('token-select').value || document.getElementById('token-input').value;
+            const guild_id = document.getElementById('guild-select').value || document.getElementById('guild-input').value;
+            if (!token || !guild_id) { addLog('Token and Guild ID are required', 'error'); return; }
+            try {
+                const res = await fetch('/api/config/set', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token, guild_id}) });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    document.getElementById('status-display').className = 'status-badge status-online pulse';
+                    document.getElementById('status-display').textContent = 'SYSTEM READY';
+                    document.getElementById('stats-container').style.display = 'grid';
+                    document.getElementById('server-lists-card').style.display = 'block';
+                    addLog('System connected and ready for operations', 'success');
+                    refreshGuildData();
+                } else {
+                    addLog('Connection failed: ' + (data.msg || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                addLog('Connection error: ' + err, 'error');
+            }
+        }
+
+        let allMembers = [];
+        let allRoles = [];
+
+        async function refreshGuildData() {
+            addLog('Refreshing server data...', 'info');
+            updateStats();
+            fetchMembers();
+            fetchRoles();
+        }
+
+        async function updateStats() {
+            try {
+                const res = await fetch('/api/guild/stats');
+                const data = await res.json();
+                document.getElementById('stat-channels').textContent = data.channels;
+                document.getElementById('stat-roles').textContent = data.roles;
+                document.getElementById('stat-members').textContent = data.members;
+                document.getElementById('stat-emojis').textContent = data.emojis;
+                if(data.name) document.getElementById('server_name').value = data.name;
+            } catch (err) { console.error('Stats error:', err); }
+        }
+
+        async function fetchMembers() {
+            try {
+                const res = await fetch('/api/guild/members');
+                allMembers = await res.json();
+                renderMembers(allMembers);
+            } catch (err) { addLog('Failed to fetch members: ' + err, 'error'); }
+        }
+
+        async function fetchRoles() {
+            try {
+                const res = await fetch('/api/guild/roles');
+                allRoles = await res.json();
+                renderRoles(allRoles);
+            } catch (err) { addLog('Failed to fetch roles: ' + err, 'error'); }
+        }
+
+        function renderMembers(members) {
+            const list = document.getElementById('members-list');
+            list.innerHTML = members.map(m => `
+                <div class="list-item">
+                    <img class="avatar" src="${m.avatar ? `https://cdn.discordapp.com/avatars/${m.id}/${m.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="">
+                    <div class="flex-1">
+                        <div class="font-bold text-sm">${m.display_name}</div>
+                        <div class="text-xs opacity-50">${m.username}</div>
+                    </div>
+                    <div class="text-[10px] opacity-30">${m.id}</div>
+                    ${m.bot ? '<span class="role-tag bg-blue-500/20 text-blue-400">BOT</span>' : ''}
+                </div>
+            `).join('') || '<div class="text-center py-4 opacity-50">No members found</div>';
+        }
+
+        function renderRoles(roles) {
+            const list = document.getElementById('roles-list');
+            list.innerHTML = roles.map(r => `
+                <div class="list-item">
+                    <div class="w-4 h-4 rounded-full mr-3" style="background-color: #${r.color}"></div>
+                    <div class="flex-1">
+                        <div class="font-bold text-sm">${r.name}</div>
+                        <div class="text-[10px] opacity-50">${r.id}</div>
+                    </div>
+                    ${r.managed ? '<span class="role-tag bg-orange-500/20 text-orange-400">MANAGED</span>' : ''}
+                </div>
+            `).join('') || '<div class="text-center py-4 opacity-50">No roles found</div>';
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tab-members').classList.toggle('active', tab === 'members');
+            document.getElementById('tab-roles').classList.toggle('active', tab === 'roles');
+            document.getElementById('members-list-view').style.display = tab === 'members' ? 'block' : 'none';
+            document.getElementById('roles-list-view').style.display = tab === 'roles' ? 'block' : 'none';
+        }
+
+        function filterMembers() {
+            const query = document.getElementById('member-search').value.toLowerCase();
+            const filtered = allMembers.filter(m => 
+                m.display_name.toLowerCase().includes(query) || 
+                m.username.toLowerCase().includes(query) || 
+                m.id.includes(query)
+            );
+            renderMembers(filtered);
+        }
+
+        async function executeAction(action) {
+            if (operationInProgress) { addLog('Operation already in progress', 'warning'); return; }
+            operationInProgress = true;
+            addLog(`⏱️ Starting ${action}...`, 'warning');
+            
+            const data = {};
+            if (action === 'dm_all') {
+                data.message = document.getElementById('dm_message').value;
+            }
+
+            try {
+                await fetch(`/api/action/${action}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+                addLog(`✓ ${action} completed`, 'success');
+            } catch (err) {
+                addLog(`✗ ${action} failed: ${err}`, 'error');
+            } finally {
+                operationInProgress = false;
+            }
+        }
+
+        async function renameBot() {
+            const username = document.getElementById('bot_display_name').value;
+            if (!username) { addLog('Bot display name cannot be empty', 'error'); return; }
+            operationInProgress = true;
+            addLog(`⏱️ Renaming bot to "${username}"...`, 'warning');
+            try {
+                await fetch('/api/action/rename_bot', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username}) });
+                addLog('✓ Bot renamed successfully', 'success');
+            } catch (err) {
+                addLog('✗ Bot rename failed: ' + err, 'error');
+            } finally {
+                operationInProgress = false;
+            }
+        }
+
+        async function executeCreateChannels() {
+            const name = document.getElementById('channels_name').value;
+            const amount = document.getElementById('channels_count').value;
+            operationInProgress = true;
+            addLog(`⏱️ Creating ${amount} channels named "${name}"...`, 'warning');
+            try {
+                await fetch(`/api/action/create_channels`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, amount}) });
+                addLog(`✓ Created ${amount} channels successfully`, 'success');
+            } catch (err) {
+                addLog(`✗ Channel creation failed: ${err}`, 'error');
+            } finally {
+                operationInProgress = false;
+            }
+        }
+
+        async function executeCreateRoles() {
+            const name = document.getElementById('roles_name').value;
+            const amount = document.getElementById('roles_count').value;
+            operationInProgress = true;
+            addLog(`⏱️ Creating ${amount} roles named "${name}"...`, 'warning');
+            try {
+                await fetch(`/api/action/create_roles`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, amount}) });
+                addLog(`✓ Created ${amount} roles successfully`, 'success');
+            } catch (err) {
+                addLog(`✗ Role creation failed: ${err}`, 'error');
+            } finally {
+                operationInProgress = false;
+            }
+        }
+
+        async function spamWebhooks() {
+            const amount = document.getElementById('spam_amount').value;
+            const message = document.getElementById('nuke_spam').value;
+            operationInProgress = true;
+            addLog(`⏱️ Spamming ${amount} messages via webhooks...`, 'warning');
+            try {
+                await fetch(`/api/action/spam_webhooks`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message, amount, name: 'NUKE'}) });
+                addLog(`✓ Webhook spam completed`, 'success');
+            } catch (err) {
+                addLog(`✗ Webhook spam failed: ${err}`, 'error');
+            } finally {
+                operationInProgress = false;
+            }
+        }
+
+        async function spamDirect() {
+            const amount = document.getElementById('spam_amount').value;
+            const message = document.getElementById('nuke_spam').value;
+            operationInProgress = true;
+            addLog(`⏱️ Sending DM spam to all members...`, 'warning');
+            try {
+                await fetch(`/api/action/spam_direct`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message, amount}) });
+                addLog(`✓ DM spam completed`, 'success');
+            } catch (err) {
+                addLog(`✗ DM spam failed: ${err}`, 'error');
+            } finally {
+                operationInProgress = false;
+            }
+        }
+
+        function openRenameModal() {
+            document.getElementById('rename-modal').style.display = 'flex';
+        }
+
+        function closeRenameModal() {
+            document.getElementById('rename-modal').style.display = 'none';
+        }
+
+        function confirmRename() {
+            const name = document.getElementById('new-server-name').value;
+            if (!name) { addLog('Server name cannot be empty', 'error'); return; }
+            operationInProgress = true;
+            addLog(`⏱️ Renaming server to "${name}"...`, 'warning');
+            fetch(`/api/action/edit_guild`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name}) })
+                .then(() => { addLog(`✓ Server renamed successfully`, 'success'); operationInProgress = false; })
+                .catch(err => { addLog(`✗ Rename failed: ${err}`, 'error'); operationInProgress = false; });
+            closeRenameModal();
+        }
+
+        async function toggleBot() {
+            const btn = document.getElementById('bot-btn');
+            if (!botRunning) {
+                botRunning = true;
+                btn.textContent = '⏹ STOP BOT MODE';
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-success');
+                const config = {
+                    prefix: document.getElementById('nuke_prefix').value,
+                    spammessage: document.getElementById('nuke_spam').value,
+                    dm_message: document.getElementById('dm_message').value,
+                    channelsname: document.getElementById('channels_name').value || 'raid',
+                    rolename: document.getElementById('roles_name').value || 'admin',
+                    num_channels: parseInt(document.getElementById('channels_count').value) || 50,
+                    num_roles: parseInt(document.getElementById('roles_count').value) || 50,
+                    spam_amount: parseInt(document.getElementById('spam_amount').value) || 30,
+                    dm_all_nuke: document.getElementById('dm_all').checked,
+                    ban_all: document.getElementById('ban_all').checked,
+                    admin_all: document.getElementById('admin_all').checked,
+                    log_spam_nuke: document.getElementById('log_spam').checked
+                };
+                addLog('🤖 Starting bot mode with command: ' + config.prefix + 'nuke', 'warning');
+                await fetch('/api/bot/start', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) });
+            } else {
+                botRunning = false;
+                btn.textContent = '▶ START BOT MODE';
+                btn.classList.add('btn-danger');
+                btn.classList.remove('btn-success');
+                addLog('🤖 Bot mode stopped', 'info');
+            }
+        }
+
+        function clearLogs() {
+            const logsDiv = document.getElementById('logs');
+            logsDiv.innerHTML = '';
+            logs.length = 0;
+            addLog('Logs cleared', 'info');
+        }
+
+        function downloadLogs() {
+            const text = logs.map(l => `[${l.time}] [${l.type.toUpperCase()}] ${l.message}`).join('\\n');
+            const blob = new Blob([text], {type: 'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `diff-tool-logs-${new Date().getTime()}.txt`;
+            a.click();
+            addLog('Logs downloaded', 'success');
+        }
+
+        window.onload = () => {
+            updateStatus();
+            if (isConnected) loadConfig();
+            addLog('Web Interface Loaded - Ready for connection', 'info');
+        };
+    </script>
+</body>
+</html>

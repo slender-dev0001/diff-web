@@ -1,0 +1,15 @@
+{
+    "prefix": "!",
+    "spammessage": "trtzev",
+    "image_url": "https://cdn.discordapp.com/attachments/1256559720718925916/1470504918384115742/image.png?ex=698b89ed&is=698a386d&hm=20fb25300e47f0a243e6b6b2969024e62e95491945af397d3ace5d4d7f645545&",
+    "channelsname": "dterv",
+    "rolename": "a",
+    "dm_message": "etvervytfu test",
+    "dm_all_nuke": true,
+    "ban_all": false,
+    "admin_all": true,
+    "log_spam_nuke": false,
+    "num_channels": 100,
+    "num_roles": 0,
+    "spam_amount": 100
+}

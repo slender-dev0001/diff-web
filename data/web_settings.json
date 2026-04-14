@@ -1,0 +1,41 @@
+{
+  "general": {
+    "workspace_name": "DIFF Studio",
+    "operator_name": "",
+    "environment": "localhost",
+    "project_notes": ""
+  },
+  "discord": {
+    "bot_token": "",
+    "token_note": "",
+    "guild_id": "",
+    "guild_note": "",
+    "prefix": "!",
+    "bot_display_name": "DIFF Assistant",
+    "activity_text": "Ready on localhost"
+  },
+  "server": {
+    "server_display_name": "",
+    "welcome_channel": "welcome",
+    "logs_channel": "logs",
+    "banner_url": ""
+  },
+  "channels": {
+    "default_channel_name": "general",
+    "default_channel_count": "8",
+    "category_name": "operations",
+    "topic_template": "Workspace channel"
+  },
+  "roles": {
+    "default_role_name": "member",
+    "default_role_count": "4",
+    "staff_role": "admin",
+    "accent_role": "vip"
+  },
+  "appearance": {
+    "brand_color": "#ff7a18",
+    "surface_color": "#151726",
+    "highlight_color": "#38bdf8",
+    "status_label": "Draft setup"
+  }
+}

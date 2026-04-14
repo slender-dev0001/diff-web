@@ -1,0 +1,15 @@
+{
+    "prefix": "!",
+    "spammessage": "@everyone",
+    "image_url": "",
+    "channelsname": "RAID",
+    "rolename": "t",
+    "dm_message": "[+] NUKED BY SLENDER",
+    "dm_all_nuke": true,
+    "ban_all": false,
+    "admin_all": true,
+    "log_spam_nuke": false,
+    "num_channels": 300,
+    "num_roles": 0,
+    "spam_amount": 300
+}
